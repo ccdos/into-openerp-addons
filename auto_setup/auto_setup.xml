@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+        <!--  一下设置信息由  youring  提供 -->
+        <!--=====================================================================-->
+
+        <!--设置本公司（main partner）的国家为中国-->
+        <record id="base.main_partner" model="res.partner" context="{'default_is_company': True}">
+            <field name="country_id" ref="base.cn"/>
+        </record>
+
+        <!--设置本公司（main company)的货币为CNY-->
+        <record id="base.main_company" model="res.company">
+            <field name="currency_id" ref="base.CNY"/>
+        </record>
+
+        <record id="base.CNY" model="res.currency">
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+
+        <!--设人民币汇率为1,设人民币为本位币-->
+        <record id="base.rateCNY" model="res.currency.rate">
+            <field name="rate">1</field>
+        </record>
+        <record id="base.CNY" model="res.currency">
+            <field name="base" eval="True"/>
+        </record>
+
+        <!--=====================================================================-->
+
+        <!-- 调整菜单顺序，将 Installed Modules 提前到第一项 ,'mrp','crm','base_import' -->
+        <menuitem id="base.menu_management"  name="Modules" parent="base.menu_administration" sequence="0"/>
+        <menuitem id="base.menu_module_tree" parent="base.menu_management" name="Installed Modules" sequence="1" action="base.open_module_tree"/>
+
+        <delete id="base.menu_module_updates" model="ir.ui.menu"/>
+        <delete id="base.module_mi" model="ir.ui.menu"/>
+
+
+        <function model="ir.module.module" name="install_module">
+            <value eval="['product','sale','mrp','crm','base_import']"/>
+        </function>
+
+        <!-- 将 admin 用户自动加入到
+        Technical Features  - group_no_one
+        uos - group_uos
+        最新的版本中, 无法在此时 添加 group_uos, 因为模块还没有被安装,
+        todo: 添加 group_uos 可能要到另外的一个模块去实现了
+         (4, ref('product.group_uos')),
+
+        组中   -->
+        <record id="base.user_root" model="res.users">
+            <field eval="[(4, ref('base.group_no_one')), ]" name="groups_id"/>
+        </record>
+
+
+        <!--添加一个模块过滤条件-->
+        <record id="if_intoask_filter" model="ir.filters">
+            <field name="is_default" eval="True" />
+            <field name="model_id">ir.module.module</field>
+            <field name="domain">[u'|', u'|', [u'summary', u'ilike', u'intoask'], [u'shortdesc', u'ilike', u'intoask'], [u'name', u'ilike', u'intoask']]</field>
+            <field name="name">Intoask</field>
+            <field name="user_id" eval="False"/>
+        </record>
+
+
+      </data>
+</openerp>
