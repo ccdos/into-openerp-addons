@@ -55,7 +55,9 @@
         </record>
 
 
-        <!--添加一个模块过滤条件-->
+        <!--添加一个模块过滤条件
+        这个过滤条件 请根据 自己需要调整一下 ,或者 直接 注释掉, 每人的情况不一样
+        -->
         <record id="if_intoask_filter" model="ir.filters">
             <field name="is_default" eval="True" />
             <field name="model_id">ir.module.module</field>
