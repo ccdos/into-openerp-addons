@@ -53,7 +53,7 @@ class ir_mail_server(osv.osv):
 
         #################################################
         # patch: 首先查找 smtp_from 对应的 smtp 服务器
-        # 要求 定义 Outgoing Mail Servers 时候, 确保 Description(name) 字段的值 为对应的 邮件发送账户(完整的eamil地址)
+        # 要求 定义 Outgoing Mail Servers 时候, 确保 Description(name) 字段的值 为对应的 邮件发送账户(完整的eMail地址)
         # 本模块以此 为 邮件的发送者 查找 smtp 服务器
         # 需要为系统中 每个可能发送邮件的账户 按以上要求设置一个 服务器
 
@@ -61,7 +61,6 @@ class ir_mail_server(osv.osv):
         if mail_server_ids:
             mail_server = self.browse(cr, SUPERUSER_ID, mail_server_ids[0])
             mail_server_id = mail_server_ids[0]
-
 
         res = super(ir_mail_server,self).send_email(cr, uid,
                                                     message,

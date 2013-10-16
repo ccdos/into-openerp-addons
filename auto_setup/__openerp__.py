@@ -22,6 +22,9 @@
     'data': [
        'auto_setup.xml',
     ],
+    'css': [
+        'static/src/css/auto_setup.css'
+    ],
     'qweb' : [
         "static/src/xml/base.xml",
     ],
