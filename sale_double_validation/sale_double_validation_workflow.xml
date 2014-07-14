@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+ 
+        # 新建 一个 节点
+        <record id="act_router_wait" model="workflow.activity">
+            <field name="wkf_id" ref="sale.wkf_sale"/>
+            <field name="name">router_wait</field>
+            <field name="kind">function</field>
+            <field name="action">
+                write({'state':'waiting_date'})
+            </field>
+            <field name="split_mode">OR</field>
+        </record>
+        
+        # 将 原来到  act_router 的 transition 改到 act_router_wait
+        <record id="sale.trans_draft_router" model="workflow.transition">
+            <field name="act_from" ref="sale.act_draft"/>
+            <field name="act_to" ref="act_router_wait"/>
+            <field name="signal">order_confirm</field>
+        </record>
+        
+        <record id="sale.trans_sent_router" model="workflow.transition">
+            <field name="act_from" ref="sale.act_sent"/>
+            <field name="act_to" ref="act_router_wait"/>
+            <field name="signal">order_confirm</field>
+        </record>
+
+        # 新建一个 transition 从 act_router_wait 到 act_router
+        <record id="trans_router_wait_to_route" model="workflow.transition">
+            <field name="act_from" ref="act_router_wait"/>
+            <field name="act_to" ref="sale.act_router"/>
+            <field name="signal">approve_order</field>
+        </record>
+       
+        # 给 act_router 添加一个 方法，注意可能别的类似的 核准模块冲突
+        <record id="sale.act_router" model="workflow.activity">
+            <field name="action">
+check_validity()
+action_wait()
+            </field>
+        </record>
+        
+
+    </data>
+</openerp>

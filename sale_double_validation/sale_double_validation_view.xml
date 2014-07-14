@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<openerp>
+    <data>
+        # action_orders_in_progress 是原先就定义好的，但是没有启用
+        
+        <menuitem id="menu_orders_in_progress"
+        action="sale.action_orders_in_progress" parent="base.menu_sales"
+        sequence="4"/>    
+
+        <record id="double_validation_view_sale_order_form" model="ir.ui.view">
+            <field name="name">sale.order.form.double.validation</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form"/>            
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_button_confirm']" position="after">
+                    <button name="approve_order" states="waiting_date" string="Approve Order" class="oe_highlight" groups="base.group_sale_manager" />
+                </xpath>
+                <xpath expr="//button[@name='print_quotation'][2]" position="attributes">
+                    <attribute name="states">sent,progress,waiting_date,manual</attribute> 
+                </xpath>
+                
+            </field>
+        </record>
+
+    </data>
+</openerp>
