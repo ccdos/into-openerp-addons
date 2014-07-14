@@ -9,11 +9,21 @@ from datetime import time, datetime
 from openerp.tools.translate import _
 from ast import literal_eval
 from dateutil.relativedelta import relativedelta
-
+from openerp import netsvc
 
 class sale_order(osv.osv):
     _inherit = "sale.order"
 
+    def action_cancel_draft(self, cr, uid, ids, context=None):
+        if not len(ids):
+            return False
+        self.write(cr, uid, ids, {'state':'draft'})
+        wf_service = netsvc.LocalService("workflow")
+        for p_id in ids:
+            # Deleting the existing instance of workflow for PO
+            wf_service.trg_delete(uid, 'sale.order', p_id, cr)
+            wf_service.trg_create(uid, 'sale.order', p_id, cr)
+        return True
 
     def check_validity(self, cr, uid, ids):
         """ 检查 订单 是否允许被 安排生产

@@ -24,6 +24,7 @@
     """,
     'website': 'http://www.intoerp.com',
     'data': [
+        'security/security.xml',
         'sale_double_validation_workflow.xml',
         'sale_double_validation_view.xml',
     ],

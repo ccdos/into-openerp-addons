@@ -13,7 +13,8 @@
             <field name="inherit_id" ref="sale.view_order_form"/>            
             <field name="arch" type="xml">
                 <xpath expr="//button[@name='action_button_confirm']" position="after">
-                    <button name="approve_order" states="waiting_date" string="Approve Order" class="oe_highlight" groups="base.group_sale_manager" />
+                    <button name="approve_order" states="waiting_date" string="Approve Order" class="oe_highlight" groups="sale_double_validation.group_production_plan_manager" />
+                    <button name="action_cancel_draft" states="waiting_date" string="Set to Draft" type="object" />
                 </xpath>
                 <xpath expr="//button[@name='print_quotation'][2]" position="attributes">
                     <attribute name="states">sent,progress,waiting_date,manual</attribute> 

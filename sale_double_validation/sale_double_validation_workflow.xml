@@ -33,13 +33,18 @@
             <field name="act_to" ref="sale.act_router"/>
             <field name="signal">approve_order</field>
         </record>
-       
+
+        # 新建一个 transition 从 act_router_wait 到 act_router
+        <record id="trans_router_wait_to_route" model="workflow.transition">
+            <field name="act_from" ref="act_router_wait"/>
+            <field name="act_to" ref="sale.act_router"/>
+            <field name="signal">approve_order</field>
+        </record>
+
         # 给 act_router 添加一个 方法，注意可能别的类似的 核准模块冲突
         <record id="sale.act_router" model="workflow.activity">
-            <field name="action">
-check_validity()
-action_wait()
-            </field>
+            <field name="action">check_validity()
+action_wait()</field>
         </record>
         
 
