@@ -42,7 +42,7 @@ class product_product(osv.osv):
                 #print product.uos_id
                 uos_coeff = product.uos_coeff
 
-            if uos_coeff and uos_coeff:
+            if uos_coeff and list_price_uos:
                 vals["list_price"] =  list_price_uos  * uos_coeff
 
         return super(product_product, self).write(cr, uid, ids, vals, context)
@@ -53,7 +53,7 @@ class product_product(osv.osv):
             list_price_uos = vals["list_price_uos"]
             if vals.has_key("uos_coeff") :
                 uos_coeff = vals["uos_coeff"]
-                if uos_coeff :
+                if uos_coeff and list_price_uos:
                     vals["list_price"] =  list_price_uos  * uos_coeff
 
         # print 'create vals:%s' % vals
