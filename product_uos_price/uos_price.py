@@ -39,10 +39,10 @@ class product_product(osv.osv):
             if  (not uos_coeff) :
                 product_obj = self.pool.get('product.product')
                 product = product_obj.browse(cr, uid, ids,context=context)[0]
-                print product.uos_id
+                #print product.uos_id
                 uos_coeff = product.uos_coeff
 
-            if uos_coeff :
+            if uos_coeff and uos_coeff:
                 vals["list_price"] =  list_price_uos  * uos_coeff
 
         return super(product_product, self).write(cr, uid, ids, vals, context)
