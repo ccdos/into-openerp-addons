@@ -23,5 +23,18 @@
             </field>
         </record>
 
+
+     <record id="double_validatio_view_sales_order_filter" model="ir.ui.view" >
+        <field name="name">sale.order.list.select.double.validati</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='draft']" position="after">
+                <filter icon="terp-gtk-jump-to-ltr" name="to_approve" string="to Approve Order" domain="[('state','in',('waiting_date'))]" help="Sale orders which are not approved yet."/>
+            </xpath>
+        </field>
+    </record>
+
+
     </data>
 </openerp>
