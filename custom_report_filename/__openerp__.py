@@ -2,7 +2,7 @@
  
 
 {
-    'name': 'custom report filename',
+    'name': 'custom_report_filename',
     'version': '1.0',
     'category': 'Base',
     'author': 'CCDOS',
