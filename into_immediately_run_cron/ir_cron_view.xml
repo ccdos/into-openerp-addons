@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <!-- ir.cron -->
+        <record id="ir_cron_view_immediately" model="ir.ui.view">
+            <field name="model">ir.cron</field>
+            <field name="inherit_id" ref="base.ir_cron_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//sheet" position="before">
+                    <header>
+                        <button name="Immediately_run_cron" string='Immediately Run Cron' type="object"/>
+                    </header>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</openerp>
