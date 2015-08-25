@@ -2,12 +2,17 @@
 <openerp>
 <data noupdate="0">
 
-
+    <!-- 生产计划员-->
     <record id="group_production_plan_manager" model="res.groups">
         <field name="name">Production Plan Manage</field>
         <field name="category_id" ref="base.module_category_hidden"/>
     </record>
 
+    <!-- 生产副总-->
+    <record id="general_manager_of_production" model="res.groups">
+        <field name="name">General manager of production</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+    </record>
 
 </data>
 </openerp>

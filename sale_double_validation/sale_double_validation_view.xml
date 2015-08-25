@@ -1,11 +1,6 @@
 <?xml version="1.0"?>
 <openerp>
     <data>
-        # action_orders_in_progress 是原先就定义好的，但是没有启用
-        
-        <menuitem id="menu_orders_in_progress"
-        action="sale.action_orders_in_progress" parent="base.menu_sales"
-        sequence="4"/>    
 
         <record id="double_validation_view_sale_order_form" model="ir.ui.view">
             <field name="name">sale.order.form.double.validation</field>
@@ -13,8 +8,13 @@
             <field name="inherit_id" ref="sale.view_order_form"/>            
             <field name="arch" type="xml">
                 <xpath expr="//button[@name='action_button_confirm']" position="after">
-                    <button name="approve_order" states="waiting_date" string="Approve Order" class="oe_highlight" groups="sale_double_validation.group_production_plan_manager" />
-                    <button name="action_cancel_draft" states="waiting_date" string="Set to Draft" type="object" />
+                    <button name="approve_order_gmp" states="waiting_date_approval" string="Approve Order"
+                            class="oe_highlight" groups="sale_double_validation.general_manager_of_production"/>
+                    <button name="approve_order_plm" states="waiting_date" string="Arrange production"
+                            class="oe_highlight" groups="sale_double_validation.group_production_plan_manager"/>
+
+                    <button name="action_cancel_draft" states="waiting_date,waiting_date_approval" string="Set to Draft"
+                            type="object"/>
                 </xpath>
                 <xpath expr="//button[@name='print_quotation'][2]" position="attributes">
                     <attribute name="states">sent,progress,waiting_date,manual</attribute> 
@@ -24,16 +24,39 @@
         </record>
 
 
-     <record id="double_validatio_view_sales_order_filter" model="ir.ui.view" >
+        <record id="double_validatio_view_sales_order_filter" model="ir.ui.view" >
         <field name="name">sale.order.list.select.double.validati</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_sales_order_filter"/>
         <field name="arch" type="xml">
             <xpath expr="//filter[@name='draft']" position="after">
-                <filter icon="terp-gtk-jump-to-ltr" name="to_approve" string="to Approve Order" domain="[('state','in',('waiting_date'))]" help="Sale orders which are not approved yet."/>
+                <filter icon="terp-gtk-jump-to-ltr" name="to_approve" string="to Approve Order"
+                        domain="['|',('state','=','waiting_date'),('state','=','waiting_date_approval')]"
+                        help="Sale orders which are not approved yet."/>
             </xpath>
         </field>
     </record>
+
+        <!--&lt;!&ndash;action_orders_in_progress&ndash;&gt;-->
+        <!--<record id="sale.action_orders_in_progress" model="ir.actions.act_window">-->
+        <!--</record>-->
+
+        <record id="sale.action_orders_in_progress" model="ir.actions.act_window">
+            <!--<field name="name">Sales Order in Progress</field>-->
+            <!--<field name="type">ir.actions.act_window</field>-->
+            <!--<field name="res_model">sale.order</field>-->
+            <!--<field name="view_type">form</field>-->
+            <!--<field name="view_mode">tree,form,calendar,graph</field>-->
+            <field name="context">{'quick_one2many':True,"search_default_to_approve":1}</field>
+            <field name="domain">[('state','in',('progress','waiting_date','waiting_date_approval','manual'))]</field>
+            <!--<field name="search_view_id" ref="iew_sales_order_filter"/>-->
+        </record>
+
+
+        # action_orders_in_progress 是原先就定义好的，但是没有启用
+        <menuitem id="menu_orders_in_progress"
+                  action="sale.action_orders_in_progress" parent="base.menu_sales"
+                  sequence="4"/>
 
 
     </data>

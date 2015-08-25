@@ -4,6 +4,19 @@
 
  
         # 新建 一个 节点
+
+        <!-- 等待 批准， 订单确认后 首先进入 次节点 等待批准-->
+        <record id="act_router_wait_approval" model="workflow.activity">
+            <field name="wkf_id" ref="sale.wkf_sale"/>
+            <field name="name">router_wait_approval</field>
+            <field name="kind">function</field>
+            <field name="action">
+                write({'state':'waiting_date_approval'})
+            </field>
+            <field name="split_mode">OR</field>
+        </record>
+
+
         <record id="act_router_wait" model="workflow.activity">
             <field name="wkf_id" ref="sale.wkf_sale"/>
             <field name="name">router_wait</field>
@@ -13,33 +26,46 @@
             </field>
             <field name="split_mode">OR</field>
         </record>
-        
-        # 将 原来到  act_router 的 transition 改到 act_router_wait
+
+
+        # 将 原来到 act_router 的 transition 改到 act_router_wait_approval
         <record id="sale.trans_draft_router" model="workflow.transition">
             <field name="act_from" ref="sale.act_draft"/>
-            <field name="act_to" ref="act_router_wait"/>
+            <field name="act_to" ref="act_router_wait_approval"/>
             <field name="signal">order_confirm</field>
         </record>
         
         <record id="sale.trans_sent_router" model="workflow.transition">
             <field name="act_from" ref="sale.act_sent"/>
-            <field name="act_to" ref="act_router_wait"/>
+            <field name="act_to" ref="act_router_wait_approval"/>
             <field name="signal">order_confirm</field>
         </record>
 
-        # 新建一个 transition 从 act_router_wait 到 act_router
-        <record id="trans_router_wait_to_route" model="workflow.transition">
-            <field name="act_from" ref="act_router_wait"/>
-            <field name="act_to" ref="sale.act_router"/>
-            <field name="signal">approve_order</field>
+        <!-- 等待批准的订单  符合条件的话，不需要 批准 not test_need_approval 返回 False ， 则直接进入 等待排程 -->
+        <record id="trans_router_wait_to_route_no_approval" model="workflow.transition">
+            <field name="act_from" ref="act_router_wait_approval"/>
+            <field name="act_to" ref="act_router_wait"/>
+            <field name="signal"></field>
+            <field name="condition">not test_need_approval()</field>
         </record>
 
-        # 新建一个 transition 从 act_router_wait 到 act_router
-        <record id="trans_router_wait_to_route" model="workflow.transition">
+        <!-- 生产副总 审批订单：test_need_approval 返回 True, 需要进行批准 -->
+        <record id="trans_router_wait_to_route_gmp" model="workflow.transition">
+            <field name="act_from" ref="act_router_wait_approval"/>
+            <field name="act_to" ref="act_router_wait"/>
+            <field name="signal">approve_order_gmp</field>
+            <field name="condition">test_need_approval()</field>
+        </record>
+
+
+        <!-- 生产计划员  安排生产 -->
+        <record id="trans_router_wait_to_route_plm" model="workflow.transition">
             <field name="act_from" ref="act_router_wait"/>
             <field name="act_to" ref="sale.act_router"/>
-            <field name="signal">approve_order</field>
+            <field name="signal">approve_order_plm</field>
+            <field name="condition">True</field>
         </record>
+
 
         # 给 act_router 添加一个 方法，注意可能别的类似的 核准模块冲突
         <record id="sale.act_router" model="workflow.activity">
