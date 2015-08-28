@@ -47,15 +47,11 @@ class sale_order(osv.osv):
 
         使用场景示例： 需要审批的订单（返回 True）， 必须由  总经理/副总经理 进行批准
                       否则（返回False）， 由 生产计划员可以直接批准
+
+        实际项目使用，应该 重写此方法 根据实际需要 返回相应的 值
         """
-        res = True
-        # for production in self.browse(cr, uid, ids):
-        #     boms = self._action_compute_lines(cr, uid, [production.id])
-        #     res = False
-        #     for bom in boms:
-        #         product = self.pool.get('product.product').browse(cr, uid, bom['product_id'])
-        #         if product.type in ('product', 'consu'):
-        #             res = True
+        res = False
+
         return res
 
     def check_validity(self, cr, uid, ids):
