@@ -6,16 +6,10 @@
 #
 ##############################################################################
 
-from osv import osv, fields
-import math
-import re
-
-from openerp import tools
-from openerp.osv import osv, fields
-from openerp.tools.translate import _
-
-import openerp.addons.decimal_precision as dp
 import logging
+
+from osv import osv
+from openerp.osv import osv
 _logger = logging.getLogger(__name__)
 
 
@@ -33,11 +27,11 @@ class ir_model(osv.osv):
 
     def name_get(self, cr, uid, ids, context=None):
         """返回显示 name 和 model 两个字段"""
+        if isinstance(ids, (int, long)):
+            ids = [ids]
         if not len(ids):
             return []
-        res = [ (r['id'], r['model'] and '%s [%s]' % (r['name'], r['model'])
-                                      or r['name'] )
-                for r in self.read(cr, uid, ids, ['name', 'model'],
-                                   context=context) ]
+        res = [(r['id'], r['model'] and '%s [%s]' % (r['name'], r['model']) or r['name'])
+               for r in self.read(cr, uid, ids, ['name', 'model'], context=context)]
         return res
 
