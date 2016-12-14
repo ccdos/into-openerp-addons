@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <xpath expr="//sheet" position="before">
                     <header>
-                        <button name="Immediately_run_cron" string='Immediately Run Cron' type="object"/>
+                        <button name="immediately_run_cron" string='Immediately Run Cron' type="object"/>
                     </header>
                 </xpath>
             </field>
