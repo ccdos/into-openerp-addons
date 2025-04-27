@@ -355,10 +355,7 @@ openerp.web_export_view = function(instance, m) {
                 complete: $.unblockUI
             });
         },
-
-    });
-    
-    instance.web.Sidebar.include({
+        
         on_sidebar_export_all_xls: function() {
             // 获取当前视图
             var self = this,
