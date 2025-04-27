@@ -23,14 +23,271 @@ openerp.web_export_view = function(instance, m) {
 
     var _t = instance.web._t,
     QWeb = instance.web.qweb;
+    
+    // 扩展 ListView 控制器，添加顶部导出按钮
+    instance.web.ListView.include({
+        init: function(parent, dataset, view_id, options) {
+            this._super.apply(this, arguments);
+            this.has_export_button = true;  // 启用导出按钮
+        },
+        
+        start: function() {
+            var self = this;
+            var res = this._super.apply(this, arguments);
+            
+            // 在视图初始化完成后添加导出按钮
+            res.done(function() {
+                self.add_export_button();
+            });
+            
+            return res;
+        },
+        
+        add_export_button: function() {
+            var self = this;
+            // 查找按钮容器
+            var $buttons = this.$el.closest('.oe_view_manager').find('.oe_view_manager_buttons');
+            if ($buttons.length === 0) {
+                return;
+            }
+            
+            // 查找新建/导入按钮所在的容器
+            var $button_container = $buttons.find('.oe_list_buttons, .oe_list_add_column, .oe_view_manager_buttons');
+            if ($button_container.length === 0) {
+                $button_container = $buttons; // 如果找不到特定容器，使用整个按钮区域
+            }
+            
+            // 检查是否已存在导出按钮
+            if ($button_container.find('.oe_list_export_button').length > 0) {
+                return;
+            }
+            
+            // 创建导出按钮和下拉菜单
+            var $export_elements = $(QWeb.render('ListView.ExportButton', {}));
+            var $export_button = $export_elements.filter('button');
+            var $export_dropdown = $export_elements.filter('ul');
+            
+            // 添加按钮到与新建/导入按钮相同的容器中
+            $button_container.append($export_button);
+            // 添加下拉菜单到body，以便正确定位
+            $('body').append($export_dropdown);
+            
+            // 绑定点击事件
+            $export_button.on('click', function(e) {
+                e.stopPropagation();
+                
+                // 隐藏所有其他下拉菜单
+                $('.oe_dropdown_menu').hide();
+                
+                // 计算下拉菜单位置
+                var button_offset = $export_button.offset();
+                var button_height = $export_button.outerHeight();
+                
+                // 设置下拉菜单位置
+                $export_dropdown.css({
+                    'top': button_offset.top + button_height + 'px',
+                    'left': button_offset.left + 'px'
+                });
+                
+                // 显示/隐藏下拉菜单
+                $export_dropdown.toggle();
+            });
+            
+            // 绑定导出当前页事件
+            $export_dropdown.find('.oe_list_export_view_xls').on('click', function() {
+                self.do_export_view_xls();
+                $export_dropdown.hide();
+            }).hover(
+                function() { $(this).css('background-color', '#f0f0f0'); },
+                function() { $(this).css('background-color', ''); }
+            );
+            
+            // 绑定导出全部记录事件
+            $export_dropdown.find('.oe_list_export_all_xls').on('click', function() {
+                self.do_export_all_xls();
+                $export_dropdown.hide();
+            }).hover(
+                function() { $(this).css('background-color', '#f0f0f0'); },
+                function() { $(this).css('background-color', ''); }
+            );
+            
+            // 点击其他地方隐藏下拉菜单
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.oe_list_export_button, .oe_list_export_dropdown').length) {
+                    $export_dropdown.hide();
+                }
+            });
+        },
+        
+        do_export_view_xls: function() {
+            // 调用侧边栏的导出当前页方法
+            var sidebar = this.sidebar || this.getParent().sidebar;
+            if (sidebar && sidebar.on_sidebar_export_view_xls) {
+                sidebar.on_sidebar_export_view_xls();
+            } else {
+                // 如果没有侧边栏，直接实现导出逻辑
+                this.export_view_xls();
+            }
+        },
+        
+        do_export_all_xls: function() {
+            // 调用侧边栏的导出全部记录方法
+            var sidebar = this.sidebar || this.getParent().sidebar;
+            if (sidebar && sidebar.on_sidebar_export_all_xls) {
+                sidebar.on_sidebar_export_all_xls();
+            } else {
+                // 如果没有侧边栏，直接实现导出逻辑
+                this.export_all_xls();
+            }
+        },
+        
+        export_view_xls: function() {
+            // 实现导出当前页的逻辑，与侧边栏的导出功能类似
+            var self = this;
+            var export_columns_keys = [];
+            var export_columns_names = [];
+            
+            $.each(this.visible_columns, function(){
+                if(this.tag=='field'){
+                    export_columns_keys.push(this.id);
+                    export_columns_names.push(this.string);
+                }
+            });
+            
+            var rows = this.$el.find('.oe_list_content > tbody > tr');
+            var export_rows = [];
+            
+            $.each(rows, function(){
+                var $row = $(this);
+                if($row.attr('data-id')){
+                    var export_row = [];
+                    $.each(export_columns_keys, function(){
+                        var cell = $row.find('td[data-field="'+this+'"]').get(0);
+                        var text = cell.text || cell.textContent || cell.innerHTML || "";
+                        if (cell.classList.contains("oe_list_field_float")){
+                            export_row.push(instance.web.parse_value(text, {'type': "float"}));
+                        }
+                        else if (cell.classList.contains("oe_list_field_integer")){
+                           export_row.push(parseInt(text));
+                        }
+                        else{
+                           export_row.push(text.trim());
+                        }
+                    });
+                    export_rows.push(export_row);
+                }
+            });
+            
+            $.blockUI();
+            self.session.get_file({
+                url: '/web/export/xls_view',
+                data: {data: JSON.stringify({
+                    model: self.model,
+                    headers: export_columns_names,
+                    rows: export_rows,
+                })},
+                complete: $.unblockUI
+            });
+        },
+        
+        export_all_xls: function() {
+            // 实现导出全部记录的逻辑，与侧边栏的导出功能类似
+            var self = this;
+            var export_columns_keys = [];
+            var export_columns_names = [];
+            
+            $.each(this.visible_columns, function(){
+                if(this.tag=='field'){
+                    export_columns_keys.push(this.id);
+                    export_columns_names.push(this.string);
+                }
+            });
+            
+            // 获取完整的 domain、context 和 sort 信息
+            var domain = [];
+            var context = {};
+            var sort = '';
+            
+            try {
+                // 创建一个模型对象
+                var model = new instance.web.Model(self.model);
+                
+                // 获取当前的过滤条件
+                var filter = [];
+                if (self.dataset && self.dataset.domain) {
+                    filter = filter.concat(self.dataset.domain);
+                }
+                
+                // 如果有搜索视图，获取搜索视图的过滤条件
+                if (self.getParent() && self.getParent().searchview) {
+                    var searchview = self.getParent().searchview;
+                    var search_data = searchview.build_search_data();
+                    if (search_data && search_data.domains) {
+                        for (var i = 0; i < search_data.domains.length; i++) {
+                            filter = filter.concat(search_data.domains[i]);
+                        }
+                    }
+                }
+                
+                // 获取当前的上下文
+                var ctx = {};
+                if (self.dataset && self.dataset.context) {
+                    ctx = new instance.web.CompoundContext(ctx, self.dataset.context);
+                }
+                
+                // 使用 model.domain() 获取完整的 domain
+                var domain = model.domain(filter);
+                
+                // 使用 model.context() 获取完整的 context
+                var context = model.context(ctx);
+                
+                // 使用 pyeval.eval 对 domain 和 context 进行解析
+                var eval_context = instance.web.pyeval.eval('contexts', [context]);
+                var eval_domain = instance.web.pyeval.eval('domains', [domain], eval_context);
+                
+                // 获取排序信息
+                var order_by = self.dataset && self.dataset.sort ? self.dataset.sort : [];
+                var sort = instance.web.serialize_sort(order_by);
+            } catch (e) {
+                console.error("Error getting domain or context:", e);
+                var eval_domain = self.dataset ? self.dataset.domain || [] : [];
+                var eval_context = self.dataset ? self.dataset.context || {} : {};
+                var sort = '';
+            }
+            
+            // 获取当前页面的总记录数
+            var total_records = 0;
+            if (self.dataset) {
+                if (self.dataset._length !== undefined) {
+                    total_records = self.dataset._length;
+                } else if (self.dataset.ids) {
+                    total_records = self.dataset.ids.length;
+                }
+            }
+            
+            $.blockUI();
+            self.session.get_file({
+                url: '/web/export/xls_view_all',
+                data: {data: JSON.stringify({
+                    model: self.model,
+                    ids: self.dataset.ids || [],
+                    fields: export_columns_keys,
+                    headers: export_columns_names,
+                    domain: eval_domain,
+                    context: eval_context,
+                    sort: sort,
+                    total_records: total_records
+                })},
+                complete: $.unblockUI
+            });
+        }
+    });
 
     instance.web.Sidebar.include({
         redraw: function() {
             var self = this;
             this._super.apply(this, arguments);
-            self.$el.find('.oe_sidebar').append(QWeb.render('AddExportViewMain', {widget: self}));
-            self.$el.find('.oe_sidebar_export_view_xls').on('click', self.on_sidebar_export_view_xls);
-            self.$el.find('.oe_sidebar_export_all_xls').on('click', self.on_sidebar_export_all_xls);
+            // 不再显示侧边栏的导出按钮，因为我们已经在顶部添加了导出按钮
         },
 
         on_sidebar_export_view_xls: function() {

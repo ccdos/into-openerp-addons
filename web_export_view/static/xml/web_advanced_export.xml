@@ -12,16 +12,26 @@
     </div>
 </t>
 
-    <!-- 新增：列表视图顶部的导出按钮 -->
-    <t t-name="ListView.ExportButton">
-    <div class="oe_list_button_export oe_list_button">
-        <button class="oe_button oe_list_export_button oe_highlight">
-            <span>导出</span>
-        </button>
-        <ul class="oe_dropdown_menu oe_list_export_dropdown" style="display: none;">
+    <!-- 新增导出按钮模板 -->
+    <t t-name="AddExportViewButton">
+    <div class="oe_list_button_export_view">
+        <button class="oe_button oe_list_export_button">导出</button>
+        <ul class="oe_dropdown_menu oe_list_export_menu" style="display: none;">
             <li class="oe_list_export_view_xls"><span>Excel (当前页)</span></li>
             <li class="oe_list_export_all_xls"><span>Excel (全部记录)</span></li>
         </ul>
     </div>
+</t>
+
+    <!-- 新增：列表视图顶部的导出按钮 -->
+    <t t-name="ListView.ExportButton">
+    <button class="oe_button oe_list_export_button oe_highlight" style="margin-left: 4px;">
+        <span>导出</span>
+    </button>
+        <ul class="oe_dropdown_menu oe_list_export_dropdown"
+            style="display: none; position: absolute; z-index: 1000; background-color: white; border: 1px solid #ababab; padding: 4px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+        <li class="oe_list_export_view_xls" style="padding: 4px 16px; cursor: pointer; white-space: nowrap;"><span>Excel (当前页选中记录)</span></li>
+            <li class="oe_list_export_all_xls" style="padding: 4px 16px; cursor: pointer; white-space: nowrap;"><span>Excel (全部记录)</span></li>
+    </ul>
 </t>
 </templates>
