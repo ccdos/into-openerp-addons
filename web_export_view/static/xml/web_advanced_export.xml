@@ -11,4 +11,17 @@
         </ul>
     </div>
 </t>
+
+    <!-- 新增：列表视图顶部的导出按钮 -->
+    <t t-name="ListView.ExportButton">
+    <div class="oe_list_button_export oe_list_button">
+        <button class="oe_button oe_list_export_button oe_highlight">
+            <span>导出</span>
+        </button>
+        <ul class="oe_dropdown_menu oe_list_export_dropdown" style="display: none;">
+            <li class="oe_list_export_view_xls"><span>Excel (当前页)</span></li>
+            <li class="oe_list_export_all_xls"><span>Excel (全部记录)</span></li>
+        </ul>
+    </div>
+</t>
 </templates>

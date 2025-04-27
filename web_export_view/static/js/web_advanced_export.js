@@ -131,55 +131,93 @@ openerp.web_export_view = function(instance, m) {
                 }
             });
             
-            // 获取当前过滤条件
-            var domain = [];
-            var combined_domain = [];
+            // 获取当前视图的 domain、context 和 sort 信息
+            $.blockUI();
             
-            // 尝试从不同的地方获取过滤条件
+            // 直接使用 model.domain() 和 model.context() 方法获取完整的 domain 和 context
             try {
-                // 1. 首先尝试从当前视图的 dataset 中获取
+                // 创建一个模型对象
+                var model = new instance.web.Model(view.model);
+                
+                // 获取当前的过滤条件
+                var filter = [];
                 if (view.dataset && view.dataset.domain) {
-                    domain = view.dataset.domain;
-                    combined_domain = domain;
+                    filter = filter.concat(view.dataset.domain);
                 }
                 
-                // 2. 尝试从搜索视图中获取
+                // 如果有搜索视图，获取搜索视图的过滤条件
                 if (view.getParent() && view.getParent().searchview) {
                     var searchview = view.getParent().searchview;
                     var search_data = searchview.build_search_data();
                     if (search_data && search_data.domains) {
-                        // 将搜索视图的域与当前域组合
-                        var search_domains = search_data.domains || [];
-                        for (var i = 0; i < search_domains.length; i++) {
-                            combined_domain = combined_domain.concat(search_domains[i]);
+                        for (var i = 0; i < search_data.domains.length; i++) {
+                            filter = filter.concat(search_data.domains[i]);
                         }
                     }
                 }
                 
-                // 3. 如果上述方法都没有获取到域，尝试其他方法
-                if (!combined_domain || combined_domain.length === 0) {
-                    if (view.dataset && view.dataset.context && view.dataset.context.domain) {
-                        combined_domain = view.dataset.context.domain;
-                    }
+                // 获取当前的上下文
+                var ctx = {};
+                if (view.dataset && view.dataset.context) {
+                    ctx = new instance.web.CompoundContext(ctx, view.dataset.context);
                 }
                 
-                // 打印过滤条件以便调试
-                console.log("Original domain:", domain);
-                console.log("Combined domain:", combined_domain);
+                // 使用 model.domain() 获取完整的 domain
+                var domain = model.domain(filter);
+                
+                // 使用 model.context() 获取完整的 context
+                var context = model.context(ctx);
+                
+                // 使用 pyeval.eval 对 domain 和 context 进行解析
+                var eval_context = instance.web.pyeval.eval('contexts', [context]);
+                var eval_domain = instance.web.pyeval.eval('domains', [domain], eval_context);
+
+                // 获取排序信息
+                var order_by = view.dataset && view.dataset.sort ? view.dataset.sort : [];
+                // var sort = instance.web.serialize_sort(order_by);
+                
+                console.log("Filter:", filter);
+                console.log("Model domain:", domain);
+                console.log("Evaluated domain:", eval_domain);
+                console.log("Context:", ctx);
+                console.log("Model context:", context);
+                console.log("Evaluated context:", eval_context);
+                console.log("Order by:", order_by);
+                // console.log("Sort:", sort);
             } catch (e) {
-                console.error("Error getting domain:", e);
-                combined_domain = domain; // 出错时使用原始域
+                console.error("Error getting domain or context:", e);
+                var eval_domain = view.dataset ? view.dataset.domain || [] : [];
+                var eval_context = view.dataset ? view.dataset.context || {} : {};
+                var sort = '';
             }
             
-            // 发送请求到后端
-            $.blockUI();
+            // 获取当前页面的总记录数
+            var total_records = 0;
+            if (view.dataset) {
+                // 如果 dataset 有 _length 属性，直接使用
+                if (view.dataset._length !== undefined) {
+                    total_records = view.dataset._length;
+                }
+                // 如果有 ids，使用 ids 的长度
+                else if (view.dataset.ids) {
+                    total_records = view.dataset.ids.length;
+                }
+                
+                console.log("Total records:", total_records);
+            }
+            
+            // 发送请求到后端，包含完整的 domain、context、sort 和总记录数
             view.session.get_file({
                 url: '/web/export/xls_view_all',
                 data: {data: JSON.stringify({
                     model: view.model,
-                    domain: combined_domain,  // 使用组合后的过滤条件
+                    ids: view.dataset.ids || [],  // 当前页面的记录IDs
                     fields: export_columns_keys,
                     headers: export_columns_names,
+                    domain: eval_domain,  // 使用解析后的 domain
+                    context: eval_context, // 使用解析后的 context
+                    // sort: sort,            // 排序条件
+                    total_records: total_records  // 当前页面的总记录数
                 })},
                 complete: $.unblockUI
             });
@@ -187,3 +225,15 @@ openerp.web_export_view = function(instance, m) {
     });
 
 };
+
+
+
+// model: 
+// fields: this._fields || false,
+// domain: instance.web.pyeval.eval('domains',
+//         [this._model.domain(this._filter)]),
+// context: instance.web.pyeval.eval('contexts',
+//         [this._model.context(this._context)]),
+// offset: this._offset,
+// limit: this._limit,
+// sort: instance.web.serialize_sort(this._order_by)

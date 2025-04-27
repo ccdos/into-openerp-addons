@@ -60,7 +60,117 @@ def index(self, req, data, token):
     model = data.get('model', [])
     columns_headers = data.get('headers', [])
     rows = data.get('rows', [])
+```
 
+### 2. 全部记录导出功能改造
+
+我们对导出功能进行了全面改造，使其能够正确处理复杂的过滤条件和时间表达式。主要改进包括：
+
+#### 2.1 前端获取完整的 domain、context 和排序信息
+
+```javascript
+// 获取完整的 domain
+var domain = [];
+if (view.dataset && view.dataset.domain) {
+    domain = domain.concat(view.dataset.domain);
+}
+
+// 如果有搜索视图，获取搜索视图的 domain
+if (view.getParent() && view.getParent().searchview) {
+    var searchview = view.getParent().searchview;
+    var search_data = searchview.build_search_data();
+    if (search_data && search_data.domains) {
+        for (var i = 0; i < search_data.domains.length; i++) {
+            domain = domain.concat(search_data.domains[i]);
+        }
+    }
+}
+
+// 使用 model.domain() 和 model.context() 获取完整的 domain 和 context
+var model = new instance.web.Model(view.model);
+var domain = model.domain(filter);
+var context = model.context(ctx);
+
+// 使用 pyeval.eval 对 domain 和 context 进行解析
+var eval_domain = instance.web.pyeval.eval('domains', [domain], eval_context);
+var eval_context = instance.web.pyeval.eval('contexts', [context]);
+```
+
+#### 2.2 后端解析复杂 domain 表达式
+
+我们创建了一个专门的 `parse_domain` 方法，用于解析复杂的 domain 表达式，特别是包含时间表达式的 domain：
+
+```python
+def parse_domain(self, domain):
+    """
+    解析复杂的 domain 表达式，特别是包含时间表达式的 domain
+    """
+    # 导入需要的模块
+    from openerp.tools.safe_eval import safe_eval
+    from datetime import datetime, timedelta
+    from dateutil.relativedelta import relativedelta
+    import time
+
+    # 准备解析环境
+    eval_context = {
+        # 返回 datetime 对象而不是字符串
+        'context_today': lambda: datetime.now(),
+        'datetime': datetime,
+        'relativedelta': relativedelta,
+        'time': time,
+        'str': str,  # 添加 str 函数以便于转换
+    }
+
+    # 将字符串形式的 domain 转换为 Python 对象
+    dom_eval = safe_eval(dom, eval_context)
+```
+
+这使得我们能够正确处理如下形式的复杂 domain：
+
+```python
+[u"[('formula_date', '>=', (context_today() + relativedelta(years=-1, month=1, day=1)).strftime('%Y-%m-%d')), ('formula_date', '<=', (context_today() + relativedelta(years=-1, month=12, day=31)).strftime('%Y-%m-%d'))]"]  
+```
+
+#### 2.3 获取当前页面的总记录数
+
+我们添加了获取当前页面总记录数的功能，并将其传递给后端：
+
+```javascript
+// 获取当前页面的总记录数
+var total_records = 0;
+if (view.dataset) {
+    // 如果 dataset 有 _length 属性，直接使用
+    if (view.dataset._length !== undefined) {
+        total_records = view.dataset._length;
+    }
+    // 如果有 ids，使用 ids 的长度
+    else if (view.dataset.ids) {
+        total_records = view.dataset.ids.length;
+    }
+}
+
+// 将总记录数传递给后端
+total_records: total_records
+```
+
+#### 2.4 使用 search_read 方法提高效率
+
+我们使用 `search_read` 方法一次性获取所有符合条件的记录，这比先 `search` 再 `read` 更高效：
+
+```python
+# 使用 search_read 方法一次性获取所有符合条件的记录
+result = Model.search_read(parsed_domain, fields, 0, False, order, user_context)
+```
+
+### 3. 改造后的优势
+
+1. **支持复杂的过滤条件**：能够正确处理包含 `context_today()` 等函数的复杂 domain 表达式
+2. **完整的上下文信息**：获取并使用完整的 context 信息
+3. **正确的排序**：将当前视图的排序信息传递给后端
+4. **高效数据获取**：使用 `search_read` 方法一次性获取数据，提高效率
+5. **总记录数信息**：获取并传递当前页面的总记录数
+
+这些改进使得导出功能更加完善，能够准确地导出用户在界面上看到的数据，即使是带有复杂过滤条件的数据。
     return req.make_response(
         self.from_data(columns_headers, rows),
         headers=[

@@ -24,45 +24,10 @@ except ImportError:
     import simplejson as json
 
 import web.http as openerpweb
-from openerp.osv import expression
-from openerp.tools.safe_eval import safe_eval
 from web.controllers.main import ExcelExport
 
 
-def string_to_domain_list(domain_string):
-    """
-    将Odoo domain字符串转换为domain列表，保持函数调用表达式的原始形式
 
-    :param domain_string: Odoo域的字符串表示
-    :return: 可用于Odoo搜索的域列表，函数调用会被保留为表达式
-    """
-
-    # 移除可能存在的Unicode前缀u
-    if domain_string.startswith('u'):
-        domain_string = domain_string[1:]
-
-    # 检查和移除字符串的引号
-    if (domain_string.startswith('"') and domain_string.endswith('"')) or \
-            (domain_string.startswith("'") and domain_string.endswith("'")):
-        domain_string = domain_string[1:-1]
-
-    # 使用eval来执行转换，但要小心安全问题
-    # 在生产环境中使用时请确保domain_string来源可信
-    try:
-        # 安全检查：确保字符串符合预期格式
-        if not (domain_string.startswith('[') and domain_string.endswith(']')):
-            raise ValueError(u"域字符串必须以 '[' 开始并以 ']' 结束")
-
-        # 使用eval直接执行转换
-        domain_list = eval(domain_string)
-
-        # 验证结果是否为列表
-        if not isinstance(domain_list, list):
-            raise ValueError(u"转换结果不是有效的列表")
-
-        return domain_list
-    except Exception as e:
-        raise ValueError(u"转换域字符串时出错: {str(e)}")
 
 
 class ExcelExportView(ExcelExport):
@@ -99,89 +64,104 @@ class ExcelExportViewAll(ExcelExport):
             raise AttributeError()
         return super(ExcelExportViewAll, self).__getattribute__(name)
 
-    def _eval_domain(self, req, domain):
-        """使用OpenERP原生方法处理domain表达式
-        
-        处理包含context_today()等函数的domain表达式
+    def parse_domain(self, domain):
         """
+        解析复杂的 domain 表达式，特别是包含时间表达式的 domain
+        
+        :param domain: 原始 domain 列表
+        :return: 解析后的 domain 列表
+        """
+        # 导入需要的模块
+        from openerp.tools.safe_eval import safe_eval
+        from datetime import datetime
+        from dateutil.relativedelta import relativedelta
+        import time
+
+        parsed_domain = []
         if not domain:
-            return []
+            return parsed_domain
 
-        # 如果是字符串形式的domain，尝试解析
-        if isinstance(domain, list) and len(domain) == 1 and isinstance(domain[0], basestring):
-            try:
-                # 创建评估上下文
-                import datetime
-                from dateutil.relativedelta import relativedelta
-                from openerp.osv import fields
-
-                # 获取用户上下文
-                user_context = req.context.copy() if req.context else {}
-
-                # 创建一个简化的评估上下文
-                # 在web控制器中我们没有直接的数据库连接
-                # 所以我们使用简化的方式处理context_today
-
-                # 返回datetime对象而不是字符串，这样可以与relativedelta对象进行操作
-                def get_today():
-                    return datetime.datetime.now()
-
-                eval_context = {
-                    'context_today': get_today,
-                    'datetime': datetime,
-                    'relativedelta': relativedelta,
-                    'context': user_context,
-                    'uid': req.session._uid if hasattr(req.session, '_uid') else None,
-                    'user': req.session._uid if hasattr(req.session, '_uid') else None,
-                    # 添加strftime函数供表达式使用
-                    'strftime': lambda dt, fmt: dt.strftime(fmt) if hasattr(dt, 'strftime') else str(dt),
-                }
-
-                # 使用safe_eval评估domain表达式
-                domain = safe_eval(domain[0], eval_context)
-            except Exception as e:
-                import logging
-                _logger = logging.getLogger(__name__)
-                _logger.warning("Error evaluating domain expression: %s", e)
-                return []
-
-        # 使用OpenERP原生的normalize_domain方法处理domain
         try:
-            return expression.normalize_domain(domain)
+            # 如果 domain 是字符串列表，需要逐个解析
+            if isinstance(domain, list):
+                for dom in domain:
+                    if isinstance(dom, basestring):
+                        # 准备解析环境
+                        eval_context = {
+                            # 返回 datetime 对象而不是字符串
+                            'context_today': lambda: datetime.now(),
+                            'datetime': datetime,
+                            'relativedelta': relativedelta,
+                            'time': time,
+                            'str': str,  # 添加 str 函数以便于转换
+                        }
+                        # 将字符串形式的 domain 转换为 Python 对象
+                        try:
+                            dom_eval = safe_eval(dom, eval_context)
+                            if isinstance(dom_eval, list):
+                                parsed_domain.extend(dom_eval)
+                            else:
+                                parsed_domain.append(dom_eval)
+                        except Exception as e:
+                            print("Error parsing domain string:", dom, e)
+                            # 如果解析失败，尝试直接使用
+                            parsed_domain.append(dom)
+                    else:
+                        # 如果不是字符串，直接添加
+                        parsed_domain.append(dom)
+            else:
+                parsed_domain = domain
+
+            print("Original domain:", domain)
+            print("Parsed domain:", parsed_domain)
         except Exception as e:
-            import logging
-            _logger = logging.getLogger(__name__)
-            _logger.warning("Error normalizing domain: %s", e)
-            return domain
+            print("Error parsing domain:", e)
+            parsed_domain = domain
+
+        return parsed_domain
 
     @openerpweb.httprequest
     def index(self, req, data, token):
         data = json.loads(data)
         model = data.get('model', '')
-        domain = data.get('domain', [])
+        ids = data.get('ids', [])
         fields = data.get('fields', [])
         headers = data.get('headers', [])
+        domain = data.get('domain', [])
+        context = data.get('context', {})
+        sort = data.get('sort', '')
+        total_records = data.get('total_records', 0)  # 获取前端传递的总记录数
 
-        # 使用OpenERP原生方法处理domain
-        domain = self._eval_domain(req, domain)
+        print("Received record IDs:", len(ids), "Domain:", domain)
+        print("Context:", context)
+        print("Sort:", sort)
+        print("Total records from frontend:", total_records)
 
+        # 使用解析方法处理 domain
+        parsed_domain = self.parse_domain(domain)
+        
         # 获取数据库连接
         Model = req.session.model(model)
 
-        # 使用OpenERP原生方法处理domain已经在上面完成
-        print("Processed domain:", domain)
+        # 合并上下文
+        user_context = req.context.copy()
+        if context:
+            user_context.update(context)
 
-        # 搜索所有符合条件的记录 ID
-        ids = Model.search(domain, 0, False, False, req.context)
+        # 准备排序参数
+        order = sort or False
 
-        # 读取所有记录的数据
-        records = Model.read(ids, fields, req.context)
+        # 使用解析后的 domain 获取数据
+        records = []
+        # 使用 search_read 方法一次性获取所有符合条件的记录
+        result = Model.search_read(parsed_domain, fields, 0, False, order, user_context)
+        records = result.get('records', []) if isinstance(result, dict) and 'records' in result else result
+        print("Using search_read, found", len(records), "records")
 
         # 准备导出数据
         rows = []
         for record in records:
             row = []
-            print(record)
             for field in fields:
                 value = record.get(field, '')
                 # 首先检查是否为False或None，确保这些值被转换为空字符串
@@ -208,10 +188,15 @@ class ExcelExportViewAll(ExcelExport):
                 elif not isinstance(value, basestring):
                     value = unicode(value)
 
-                # 打印处理前后的值，便于调试
-                print("Field: %s, Original: %s, Processed: %s" % (field, record.get(field, ''), value))
                 row.append(value)
             rows.append(row)
+
+        print(u'total rows:', len(rows))
+        if total_records <> len(rows):
+            # 前后端记录数不同, 输出错误信息
+            print("Error: Total records mismatch: expected %d, got %d" % (total_records, len(rows)))
+
+            
 
         # 返回 Excel 文件
         return req.make_response(
